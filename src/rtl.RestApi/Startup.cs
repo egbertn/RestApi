@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Serialization;
 using rtl.RestApi.Customization;
 using rtl.Services.Implementations;
 using rtl.Services.Interfaces;
@@ -13,7 +12,7 @@ using TvMazeApi;
 namespace rtl.RestApi
 {
     //NOTE: using DBContext is too much weight for the scope. Consider it an option, but I use MemoryCache
-
+    //NOTE2: For Model and TvMazeApiClient I used code from Erwin Beckers (why reinvent).
     public class Startup
     {
         public Startup(IConfiguration configuration, IHostingEnvironment env)
