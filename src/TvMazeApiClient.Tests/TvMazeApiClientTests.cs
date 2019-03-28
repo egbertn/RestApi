@@ -21,5 +21,7 @@ namespace TvMazeApiClient.Tests
             var castResponse = await _tvMazeClient.GetCastAsync(1);
             Assert.True(castResponse.First().Person.Name == "Rachelle Lefevre");
         }
+
+
     }
 }

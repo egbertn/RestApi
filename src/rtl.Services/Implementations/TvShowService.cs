@@ -64,7 +64,7 @@ namespace rtl.Services.Implementations
                         Id = s.Person.Id,
                         BirthDate = s.Person.Birthday
                        
-                    }).OrderByDescending(d => d.BirthDate).ToArray();
+                    }).Distinct().OrderByDescending(d => d.BirthDate).ToArray();
                 }
                 _cache.Set(CacheKey(pageNumber, pageSize), response);
             }
