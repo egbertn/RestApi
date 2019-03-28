@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using System;
 using System.Linq;
@@ -31,9 +30,9 @@ namespace rtl.RestApi.Tests
             var result = await request.GetAsync();
             Assert.True(result.IsSuccessStatusCode, requestString + " failed");
             var response = (await result.Content.ReadAsAsync<TvsShowsResponse>());
-            Assert.Equal(response?.Shows.Count ?? 0,pageSize);
+            Assert.Equal(pageSize, response?.Shows.Count ?? 0);
             // every parameter must be inspected
-            Assert.Collection(response.Shows, f => { Assert.True(f.Id > 0, "It seems a TvShow has invalid data"); });
+            Assert.All(response.Shows, f => { Assert.True(f.Name?.Length > 0, "It seems a TvShow has invalid data"); });
         }
         [Theory]
         [InlineData(-1, 50)]
