@@ -9,11 +9,11 @@ namespace TvMazeScraper.Entities
     {
         public override bool Equals(object obj)
         {
-            return (obj is Actor act && act.GetHashCode() == GetHashCode());
+            return (obj is Actor act && act.Id == Id);
         }
         public override int GetHashCode()
         {
-            return (Name + BirthDate.ToShortDateString()).GetHashCode();
+            return Id;
         }
         public int Id { get; set; }
         public string Name { get; set; }
