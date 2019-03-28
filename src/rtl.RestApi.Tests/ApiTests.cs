@@ -52,7 +52,7 @@ namespace rtl.RestApi.Tests
             {
                 new Actor() { Id = 1, BirthDate = new DateTime(2000, 1, 1), Name = "Peter Pan" },
                 new Actor() { Id = 1, BirthDate = new DateTime(2000, 1, 1), Name = "Peter Pan" },
-                new Actor() { Id = 1, BirthDate = new DateTime(1950, 1, 10), Name = "Tinklebell" }            
+                new Actor() { Id = 2, BirthDate = new DateTime(1950, 1, 10), Name = "Tinklebell" }            
             }.Distinct().OrderByDescending(o => o.BirthDate).ToArray();
             Assert.True(actors.Length == 2);
             Assert.True(actors[0].BirthDate == new DateTime(2000, 1, 1));
