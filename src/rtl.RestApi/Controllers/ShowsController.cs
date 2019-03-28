@@ -30,12 +30,17 @@ namespace rtl.RestApi.Controllers
         [ProducesResponseType(typeof(TvsShowsResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(TvShowsErrorResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(TvShowsErrorResponse), StatusCodes.Status500InternalServerError)]
+        [Produces("application/json")]
         public async Task<ActionResult<TvsShowsResponse>> Get(int pageNumber, int pageSize = 50)
         {         
 
             try
             {
                 var shows = await _tvShowService.GetShowsWithActorAsync(pageNumber, pageSize);
+                if (shows.Shows.Count == 0)
+                {
+                    return NotFound();
+                }
                 return Ok(shows);
             }
             catch (ArgumentException ex)

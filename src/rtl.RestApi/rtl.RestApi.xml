@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>rtl.RestApi</name>
+    </assembly>
+    <members>
+        <member name="M:rtl.RestApi.Controllers.ShowsController.Get(System.Int32,System.Int32)">
+            <summary>
+            Does stuff
+            </summary>
+            <param name="pageNumber">A 0 based value</param>
+            <param name="pageSize">pagesize between 50 and 250</param>
+        </member>
+    </members>
+</doc>
