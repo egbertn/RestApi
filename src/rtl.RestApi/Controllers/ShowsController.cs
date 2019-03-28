@@ -27,7 +27,7 @@ namespace rtl.RestApi.Controllers
         /// <param name="pageNumber">A 0 based value</param>
         /// <param name="pageSize">pagesize between 50 and 250</param>
         [HttpGet("{pageNumber}/{pageSize}")]
-        [ProducesResponseType(typeof(TvsShowsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(TvShowWithCast), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(TvShowsErrorResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(TvShowsErrorResponse), StatusCodes.Status500InternalServerError)]
         [Produces("application/json")]
@@ -41,7 +41,7 @@ namespace rtl.RestApi.Controllers
                 {
                     return NotFound();
                 }
-                return Ok(shows);
+                return Ok(shows.Shows);
             }
             catch (ArgumentException ex)
             {
