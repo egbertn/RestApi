@@ -9,9 +9,14 @@ namespace ADC.RestApiTools
 {
     public static class RestSharpExtensions
     {
-        private static readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5)  });
-
-        public static T GetDataByHashFromRequest<T>(this RestRequest request, string baseUrl)
+        private static readonly IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5)  });
+        private static readonly TimeSpan ExpiresDefault = TimeSpan.FromHours(24);
+        private static int GetHashFromUri(string baseUrl, IList<Parameter> parameters)
+        {
+            return string.Concat(baseUrl, parameters.Count > 0 ? string.Join("", parameters.Select(s =>
+              string.Concat(s.Name, s.ContentType, s.Value.ToString()))) : "").GetHashCode();
+        }
+        public static T GetDataByHashFromRequest<T>(this IRestRequest request, string baseUrl)
         {//unique request, not necesarily a valid uri
             if (request == null)
             {
@@ -25,10 +30,9 @@ namespace ADC.RestApiTools
             {
                 throw new ArgumentNullException(nameof(baseUrl));
             }
-            var hash =  (baseUrl + request.Resource + (request.Parameters.Count > 0 ? string.Join("", request.Parameters.Select(s =>
-              string.Concat(s.Name, s.ContentType, s.Value.ToString()))) : "")).GetHashCode();
+            var hash = GetHashFromUri(baseUrl, request.Parameters);
 
-            if (_cache.TryGetValue(hash, out (string eTag, string modifiedSince, bool hasExpires, object data) etag))
+            if (Cache.TryGetValue(hash, out (string eTag, string modifiedSince, bool hasExpires, object data) etag))
             {
                 request.AddHeader("If-None-Match", etag.eTag);
                 request.AddHeader("If-Last-Modified", etag.modifiedSince);
@@ -39,7 +43,7 @@ namespace ADC.RestApiTools
             else
                 return default(T);
         }
-        private static int IndexOfParam(IList<Parameter> parameters, string name)
+        private static int IndexOfParam(this IList<Parameter> parameters, string name)
         {
             var idx = parameters.Count;
             while (idx-- != 0)
@@ -51,18 +55,16 @@ namespace ADC.RestApiTools
             }
             return -1;
         }
-        public static void SetDataByRequest(this RestRequest request, string baseUrl, IList<Parameter> headers, object data)
+        public static void SetDataByRequest(this IRestRequest request, string baseUrl, IList<Parameter> headers, object data)
         {
-            var hash = (baseUrl + request.Resource + (request.Parameters.Count > 0 ? string.Join("", request.Parameters.Select(s =>
-                    string.Concat(s.Name, s.ContentType, s.Value.ToString()))) : "")).GetHashCode();
-
-            var etagIdx = IndexOfParam(headers, "ETAG");
-            var expiresIdx = IndexOfParam(headers, "Expires");
+            var hash = GetHashFromUri(baseUrl, request.Parameters);
+            var etagIdx = headers.IndexOfParam( "ETAG");
+            var expiresIdx = headers.IndexOfParam( "Expires");
 
             // todo also get e.g. Expires: Mon, 11 Jan 2010 13:29:35 GMT
             // or Cache-Control: max-age=600
-            var lastModifiedIdex = IndexOfParam(headers, "Last-Modified");
-            var cacheControl = IndexOfParam(headers, "Cache-Control"); //max-age=<seconds>
+            var lastModifiedIdex = headers.IndexOfParam("Last-Modified");
+            var cacheControl = headers.IndexOfParam( "Cache-Control"); //max-age=<seconds>
             if (etagIdx < 0 && lastModifiedIdex < 0 && cacheControl < 0)
             {
                 return;
@@ -80,10 +82,20 @@ namespace ADC.RestApiTools
             if (cacheControl >= 0 && offset == null)
             {
                 var directive = (string)headers[cacheControl].Value;
+                //Cache-Control: public,max-age=31536000
                 if (directive.IndexOf("max-age", StringComparison.InvariantCultureIgnoreCase) >= 0)
                 {
                     var parts = directive.Split('=');
-                    if (parts.Length == 2 && double.TryParse(parts[1].Trim(), out double expiresSeconds))
+                    if (parts[0].Contains(',')) //may be private or public
+                    {
+                        var isPrivate = parts[0].Split(',')[0].StartsWith("private", StringComparison.InvariantCultureIgnoreCase);
+                        if (isPrivate)
+                        {
+                            parts = new string[0];//disable no caching at server side
+                        }
+                    }
+                    // no need for trimming
+                    if (parts.Length == 2 && double.TryParse(parts[1], out double expiresSeconds))
                     {
                         expiresRelative = TimeSpan.FromSeconds(expiresSeconds);
                     }
@@ -95,16 +107,18 @@ namespace ADC.RestApiTools
 
             if (expiresRelative != null)
             {
-                _cache.Set(hash, (etagValue, lastMod, true, data), expiresRelative.Value);
+                Cache.Set(hash, (etagValue, lastMod, true, data), expiresRelative.Value);
             }
             else if (offset != null)
             {
-                _cache.Set(hash, (etagValue, lastMod, true, data), offset.Value);
+                Cache.Set(hash, (etagValue, lastMod, true, data), offset.Value);
             }
             // cache but ETAG must be set
             else
             {
-                _cache.Set(hash, (etagValue, lastMod, false, data));
+                //avoid stuffing memory 24 hours seems a good time unless you have billions of rows from wich billions are requested daily
+                // monitor memory
+                Cache.Set(hash, (etagValue, lastMod, false, data), ExpiresDefault);
             }
         }
     }
