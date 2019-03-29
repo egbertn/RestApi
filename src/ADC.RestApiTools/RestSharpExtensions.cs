@@ -9,7 +9,7 @@ namespace ADC.RestApiTools
 {
     public static class RestSharpExtensions
     {
-        private static readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5), SizeLimit = 1000  });
+        private static readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5)  });
 
         public static T GetDataByHashFromRequest<T>(this RestRequest request, string baseUrl)
         {//unique request, not necesarily a valid uri
