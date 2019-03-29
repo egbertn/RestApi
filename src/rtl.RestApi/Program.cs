@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 
-namespace rtl.RestApi
+namespace demo.RestApi
 {
     public class Program
     {

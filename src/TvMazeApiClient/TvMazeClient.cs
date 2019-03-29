@@ -1,6 +1,9 @@
-﻿using RestSharp;
+﻿
+using ADC.RestApiTools;
+using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +14,6 @@ namespace TvMazeApi
     public class TvMazeClient
     {
         static public readonly int PAGE_SIZE = 250;
-
         private const int RateLimitSleepTimerSecs = 1;
         private const int HttpStatusCodeReachedRateLimit = 429;
         private const string _baseUrl = "http://api.tvmaze.com";
@@ -28,31 +30,41 @@ namespace TvMazeApi
             var client = new RestClient(_baseUrl);
             var request = new RestRequest("shows", Method.GET);
             request.AddQueryParameter("page", pageNumber.ToString());
-
+            var data = request.GetDataByHashFromRequest< IEnumerable<Show>>(_baseUrl); 
+            if (data != null)
+            {
+                return data;
+            }
             var isRateLimited = false;
             do
             {
                 isRateLimited = false;
+                
                 var response = await client.ExecuteTaskAsync<IEnumerable<Show>>(request);
-                if (response.IsSuccessful)
+                
+                switch (response.StatusCode)
                 {
-                    return response.Data;
-                }
-
-                if (response.StatusCode == HttpStatusCode.NotFound)
-                {
-                    return new Show[0];
-                }
-                //API calls are rate limited to allow at least 20 calls every 10 seconds per IP address
-                if (response.StatusCode == (HttpStatusCode)HttpStatusCodeReachedRateLimit)
-                {
-                    isRateLimited = true;
-                    Thread.Sleep(TimeSpan.FromSeconds(RateLimitSleepTimerSecs));
+                    case HttpStatusCode.NotModified:
+                        return request.GetDataByHashFromRequest<IEnumerable<Show>>(_baseUrl);
+                    default:
+                    case HttpStatusCode.NotFound:
+                        return new Show[0];
+                    case HttpStatusCode.OK:
+                        request.SetDataByRequest(_baseUrl, response.Headers, response.Data);
+                        return response.Data;
+                    case (HttpStatusCode)HttpStatusCodeReachedRateLimit:
+                        isRateLimited = true;
+                 //API calls are rate limited to allow at least 20 calls every 10 seconds per IP address
+                       Thread.Sleep(TimeSpan.FromSeconds(RateLimitSleepTimerSecs));
+                       break;
                 }
             } while (isRateLimited);
             return new Show[0];
         }
-
+     
+      
+      
+      
         /// <summary>
         /// Get actors for a show from TvMaze
         /// </summary>
@@ -63,29 +75,38 @@ namespace TvMazeApi
         {
             if (tvShow == null) throw new ArgumentNullException(nameof(tvShow));
             var client = new RestClient(_baseUrl);
-            var request = new RestRequest($"shows/{tvShow.Id}/cast", Method.GET);
 
+            var request = new RestRequest($"shows/{tvShow.Id}/cast", Method.GET);
+            var data = request.GetDataByHashFromRequest<IEnumerable<Actor>>(_baseUrl);
+            if (data != null)
+            {
+                return data;
+            }
             var isRateLimited = false;
             do
             {
                 isRateLimited = false;
                 var response = await client.ExecuteTaskAsync<IEnumerable<Actor>>(request);
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    return response.Data;
-                }
 
-                if (response.StatusCode == HttpStatusCode.NotFound)
+                switch(response.StatusCode)
                 {
-                    return new Actor[0];
+                    case HttpStatusCode.NotModified:
+                        return request.GetDataByHashFromRequest< IEnumerable<Actor>>(_baseUrl);
+                       
+                    case HttpStatusCode.OK:
+                        request.SetDataByRequest(_baseUrl, response.Headers, response.Data);
+                        return response.Data;
+                      
+                    case HttpStatusCode.NotFound:
+                        return new Actor[0];
+                      
+                    case (HttpStatusCode)HttpStatusCodeReachedRateLimit:
+                        Trace.TraceInformation("--rate limit--");
+                        isRateLimited = true;
+                        Thread.Sleep(TimeSpan.FromSeconds(RateLimitSleepTimerSecs));
+                        break;
                 }
-
-                if (response.StatusCode == (HttpStatusCode)HttpStatusCodeReachedRateLimit)
-                {
-                    Console.WriteLine("--rate limit--");
-                    isRateLimited = true;
-                    Thread.Sleep(TimeSpan.FromSeconds(RateLimitSleepTimerSecs));
-                }
+                
             } while (isRateLimited);
             return new Actor[0];
         }

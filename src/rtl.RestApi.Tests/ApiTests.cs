@@ -8,7 +8,7 @@ using TvMazeScraper.Entities;
 using TvMazeScraper.Models;
 using Xunit;
 
-namespace rtl.RestApi.Tests
+namespace demo.RestApi.Tests
 {
     //End to End tests
     public class ApiTests

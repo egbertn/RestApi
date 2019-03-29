@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using rtl.Services.Interfaces;
+using demo.Services.Interfaces;
 using System;
 using System.Threading.Tasks;
 using TvMazeScraper.Models;
 
-namespace rtl.RestApi.Controllers
+namespace demo.RestApi.Controllers
 {
 
     /*

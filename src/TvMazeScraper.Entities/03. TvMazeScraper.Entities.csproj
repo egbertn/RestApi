@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>TvMazeScraper.Entities</RootNamespace>
+    <AssemblyName>TvMazeScraper.Entities</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

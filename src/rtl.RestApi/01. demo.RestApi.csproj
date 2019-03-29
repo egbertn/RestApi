@@ -3,11 +3,23 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.2</TargetFramework>
     <AspNetCoreHostingModel>InProcess</AspNetCoreHostingModel>
+    <RootNamespace>demo.RestApi</RootNamespace>
+    <AssemblyName>demo.RestApi</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DocumentationFile>C:\Users\egbert\Source\Repos\rtltest\src\rtl.RestApi\rtl.RestApi.xml</DocumentationFile>
+    <DocumentationFile>C:\Users\egbert\Source\Repos\rtltest\src\rtl.RestApi\demo.RestApi.xml</DocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="demo.RestApi.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="demo.RestApi.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.6.1" />
@@ -17,9 +29,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\rtl.Services\rtl.Services.csproj" />
-    <ProjectReference Include="..\TvMazeScraper.Entities\TvMazeScraper.Entities.csproj" />
-    <ProjectReference Include="..\TvMazeScraper.Models\TvMazeScraper.Models.csproj" />
+    <ProjectReference Include="..\rtl.Services\02. demo.Services.csproj" />
+    <ProjectReference Include="..\TvMazeApiClient\03. TvMazeApiClient.csproj" />
   </ItemGroup>
 
 </Project>

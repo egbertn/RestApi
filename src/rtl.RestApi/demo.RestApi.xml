@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <doc>
     <assembly>
-        <name>rtl.RestApi</name>
+        <name>01. demo.RestApi</name>
     </assembly>
     <members>
-        <member name="M:rtl.RestApi.Controllers.ShowsController.Get(System.Int32,System.Int32)">
+        <member name="M:demo.RestApi.Controllers.ShowsController.Get(System.Int32,System.Int32)">
             <summary>
             Does stuff
             </summary>

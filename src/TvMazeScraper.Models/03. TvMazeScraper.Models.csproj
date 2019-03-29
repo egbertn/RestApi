@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>TvMazeScraper.Models</AssemblyName>
+    <RootNamespace>TvMazeScraper.Models</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TvMazeScraper.Entities\03. TvMazeScraper.Entities.csproj" />
+  </ItemGroup>
+
+</Project>

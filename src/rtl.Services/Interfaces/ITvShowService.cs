@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using TvMazeScraper.Models;
 
-namespace rtl.Services.Interfaces
+namespace demo.Services.Interfaces
 {
     /// <summary>
     /// defines Service Interface for TV Show

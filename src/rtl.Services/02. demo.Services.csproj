@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>demo.Services</AssemblyName>
+    <RootNamespace>demo.Services</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TvMazeApiClient\03. TvMazeApiClient.csproj" />
+    <ProjectReference Include="..\TvMazeScraper.Entities\03. TvMazeScraper.Entities.csproj" />
+    <ProjectReference Include="..\TvMazeScraper.Models\03. TvMazeScraper.Models.csproj" />
+  </ItemGroup>
+
+</Project>
