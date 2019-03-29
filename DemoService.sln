@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.539
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "01. demo.RestApi", "src\rtl.RestApi\01. demo.RestApi.csproj", "{FE89E706-B998-4A59-9082-D6EA061E511E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "01. demo.RestApi", "src\demo.RestApi\01. demo.RestApi.csproj", "{FE89E706-B998-4A59-9082-D6EA061E511E}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6D7FE505-EF68-40CB-9FB9-68E5DF311BEE} = {6D7FE505-EF68-40CB-9FB9-68E5DF311BEE}
 		{31524B07-E719-426C-A135-5BA64BF679C7} = {31524B07-E719-426C-A135-5BA64BF679C7}
@@ -15,9 +15,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "03. TvMazeScraper.Models", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "03. TvMazeApiClient", "src\TvMazeApiClient\03. TvMazeApiClient.csproj", "{50554B76-7897-4EC9-8F33-061DF903590E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "02. demo.Services", "src\rtl.Services\02. demo.Services.csproj", "{13FFEB36-8CCD-446F-818B-DED4188C4297}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "02. demo.Services", "src\demo.Services\02. demo.Services.csproj", "{13FFEB36-8CCD-446F-818B-DED4188C4297}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "01. demo.RestApi.Tests", "src\rtl.RestApi.Tests\01. demo.RestApi.Tests.csproj", "{45B16697-8764-467C-9647-5D8993D395E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "01. demo.RestApi.Tests", "src\demo.RestApi.Tests\01. demo.RestApi.Tests.csproj", "{45B16697-8764-467C-9647-5D8993D395E9}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6D7FE505-EF68-40CB-9FB9-68E5DF311BEE} = {6D7FE505-EF68-40CB-9FB9-68E5DF311BEE}
 		{31524B07-E719-426C-A135-5BA64BF679C7} = {31524B07-E719-426C-A135-5BA64BF679C7}
@@ -30,7 +30,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "03. TvMazeApiClient.Tests",
 		{6CABA8FB-0F67-41A8-B1E8-533F795A7BD4} = {6CABA8FB-0F67-41A8-B1E8-533F795A7BD4}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "10. ADC.RestApiTools", "ADC.RestApiTools\10. ADC.RestApiTools.csproj", "{6CABA8FB-0F67-41A8-B1E8-533F795A7BD4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "10. ADC.RestApiTools", "src\ADC.RestApiTools\10. ADC.RestApiTools.csproj", "{6CABA8FB-0F67-41A8-B1E8-533F795A7BD4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5C8B7AFB-0ECF-4614-8916-CEF62CA5E331}"
 	ProjectSection(SolutionItems) = preProject

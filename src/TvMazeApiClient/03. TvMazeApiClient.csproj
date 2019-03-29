@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\ADC.RestApiTools\10. ADC.RestApiTools.csproj" />
+    <ProjectReference Include="..\..\src\ADC.RestApiTools\10. ADC.RestApiTools.csproj" />
   </ItemGroup>
 
 </Project>

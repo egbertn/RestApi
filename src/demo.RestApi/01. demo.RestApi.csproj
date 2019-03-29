@@ -29,7 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\rtl.Services\02. demo.Services.csproj" />
+    <ProjectReference Include="..\demo.Services\02. demo.Services.csproj" />
     <ProjectReference Include="..\TvMazeApiClient\03. TvMazeApiClient.csproj" />
   </ItemGroup>
 
