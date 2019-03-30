@@ -17,15 +17,26 @@ namespace demo.RestApi
 {
     //NOTE: using DBContext is too much weight for the scope. Consider it an option, but I use MemoryCache
     //NOTE2: For Model and TvMazeApiClient I used code from Erwin Beckers (why reinvent).
+         ///<summary>
+     ///lah di dah
+     ///</summary>
     public class Startup
     {
+             ///<summary>
+     ///lah di dah
+     ///</summary>
         public Startup(IConfiguration configuration, IHostingEnvironment env)
         {
             Configuration = configuration;            
         }
-
+     ///<summary>
+     ///lah di dah
+     ///</summary>
         public IConfiguration Configuration { get; }
 
+     ///<summary>
+     ///lah di dah
+     ///</summary>
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
@@ -51,6 +62,9 @@ namespace demo.RestApi
             services.AddScoped<TvMazeClient> ();
           
         }
+             ///<summary>
+     ///lah di dah
+     ///</summary>
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

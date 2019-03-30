@@ -11,11 +11,17 @@ namespace demo.RestApi.Controllers
     /*
      * It should provide a paginated list of all tv shows containing the id of the TV show and a list of all the cast that are playing in that TV show. 
      */
+     ///<summary>
+     ///lah di dah
+     ///</summary>
     [Route("[controller]")]   
     [ApiExplorerSettings(GroupName = "v1")]    
     public class ShowsController : ControllerBase
     {
         private readonly ITvShowService _tvShowService;
+             ///<summary>
+     ///lah di dah
+     ///</summary>
         public ShowsController(ITvShowService tvShowService)
         {
             _tvShowService = tvShowService;

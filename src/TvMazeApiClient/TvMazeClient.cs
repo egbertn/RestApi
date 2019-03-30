@@ -17,7 +17,7 @@ namespace TvMazeApi
         private const int RateLimitSleepTimerSecs = 1;
         private const int HttpStatusCodeReachedRateLimit = 429;
         private const string _baseUrl = "http://api.tvmaze.com";
-
+     
         /// <summary>
         /// Get list of tv shows from TvMaze. 
         /// Shows are paginated by pages where each page is 250 rows
@@ -28,6 +28,7 @@ namespace TvMazeApi
         {
             if (pageNumber < 0) throw new ArgumentOutOfRangeException(nameof(pageNumber));
             var client = new RestClient(_baseUrl);
+            client.RestSharpHandler();
             var request = new RestRequest("shows", Method.GET);
             request.AddQueryParameter("page", pageNumber.ToString());
             var data = request.GetDataByHashFromRequest< IEnumerable<Show>>(_baseUrl); 
@@ -50,7 +51,7 @@ namespace TvMazeApi
                     case HttpStatusCode.NotFound:
                         return new Show[0];
                     case HttpStatusCode.OK:
-                        request.SetDataByRequest(_baseUrl, response.Headers, response.Data);
+                       
                         return response.Data;
                     case (HttpStatusCode)HttpStatusCodeReachedRateLimit:
                         isRateLimited = true;
@@ -75,7 +76,7 @@ namespace TvMazeApi
         {
             if (tvShow == null) throw new ArgumentNullException(nameof(tvShow));
             var client = new RestClient(_baseUrl);
-
+            client.RestSharpHandler();
             var request = new RestRequest($"shows/{tvShow.Id}/cast", Method.GET);
             var data = request.GetDataByHashFromRequest<IEnumerable<Actor>>(_baseUrl);
             if (data != null)
@@ -94,7 +95,7 @@ namespace TvMazeApi
                         return request.GetDataByHashFromRequest< IEnumerable<Actor>>(_baseUrl);
                        
                     case HttpStatusCode.OK:
-                        request.SetDataByRequest(_baseUrl, response.Headers, response.Data);
+                       
                         return response.Data;
                       
                     case HttpStatusCode.NotFound:

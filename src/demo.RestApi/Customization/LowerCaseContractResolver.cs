@@ -7,6 +7,9 @@ namespace demo.RestApi.Customization
     /// </summary>
     public class LowerCaseContractResolver: DefaultContractResolver
     {
+             ///<summary>
+     ///lah di dah
+     ///</summary>
         protected override string ResolvePropertyName(string propertyName)
         {
             return propertyName.ToLower();

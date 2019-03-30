@@ -1,20 +1,52 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+﻿using ADC.RestApiTools.Models;
 using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json;
 using RestSharp;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace ADC.RestApiTools
 {
     public static class RestSharpExtensions
     {
-        private static readonly IMemoryCache Cache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5)  });
-        private static readonly TimeSpan ExpiresDefault = TimeSpan.FromHours(24);
-        private static int GetHashFromUri(string baseUrl, IList<Parameter> parameters)
+        public static void ConfigHttpCache(long maxMemorySize, TimeSpan? expirationScanFrequency = null)
         {
-            return string.Concat(baseUrl, parameters.Count > 0 ? string.Join("", parameters.Select(s =>
-              string.Concat(s.Name, s.ContentType, s.Value.ToString()))) : "").GetHashCode();
+            MaxMemorySize = maxMemorySize;
+            ExpirationScanFrequency = expirationScanFrequency;
+        }
+        private static long? MaxMemorySize;
+        private static TimeSpan? ExpirationScanFrequency;
+
+        internal static readonly Lazy<IMemoryCache> Cache = new Lazy<IMemoryCache>(() => new MemoryCache(
+              new MemoryCacheOptions()
+              {
+                  ExpirationScanFrequency = ExpirationScanFrequency ?? TimeSpan.FromMinutes(5),
+                  SizeLimit = MaxMemorySize
+              })
+        );
+        private static readonly TimeSpan ExpiresDefault = TimeSpan.FromHours(24);
+        internal static int GetHashFromUri(string baseUrl, string resource, IList<Parameter> parameters)
+        {
+            var uri = new Uri(new Uri(baseUrl), new Uri(  resource, UriKind.Relative));
+            
+            var builder = new UriBuilder(uri)
+            {
+                Query = string.Join("&", parameters.Select(s =>
+                  string.Concat(Uri.EscapeUriString(s.Name), "=", Uri.EscapeDataString(s.Value.ToString()))))
+            };
+
+            return builder.Uri.ToString().GetHashCode();
+        }
+        /// <summary>
+        /// adds HTTP caching ability
+        /// </summary>
+        /// <param name="restClient"></param>
+        public static void RestSharpHandler(this RestClient restClient)
+        {
+            restClient.AddHandler("application/json", ()=>new RestSharpDeserializer());
         }
         public static T GetDataByHashFromRequest<T>(this IRestRequest request, string baseUrl)
         {//unique request, not necesarily a valid uri
@@ -30,20 +62,31 @@ namespace ADC.RestApiTools
             {
                 throw new ArgumentNullException(nameof(baseUrl));
             }
-            var hash = GetHashFromUri(baseUrl, request.Parameters);
+            var hash = GetHashFromUri(baseUrl, request.Resource, request.Parameters);
 
-            if (Cache.TryGetValue(hash, out (string eTag, string modifiedSince, bool hasExpires, object data) etag))
+            if (Cache.Value.TryGetValue(hash, out CacheEntry etag))
             {
-                request.AddHeader("If-None-Match", etag.eTag);
-                request.AddHeader("If-Last-Modified", etag.modifiedSince);
+                if (etag.EtagValue != null)
+                {
+                    request.AddHeader("If-None-Match", Encoding.UTF8.GetString( etag.EtagValue));
+                }
+                if (etag.LastModified != null)
+                {
+                    request.AddHeader("If-Last-Modified", Encoding.UTF8.GetString(etag.LastModified));
+                }
             }
+
             // the data is there, we allowed cache so that takes precedence
-            if (etag.hasExpires == true)
-                return (T)etag.data;
+            if (etag.HasExpires == true)
+            {
+                
+                var deser = new JsonSerializer();
+                return deser.Deserialize<T>(new JsonTextReader(new StreamReader(new MemoryStream(etag.Data), Encoding.UTF8)));
+            }
             else
                 return default(T);
         }
-        private static int IndexOfParam(this IList<Parameter> parameters, string name)
+        internal static int IndexOfParam(this IList<Parameter> parameters, string name)
         {
             var idx = parameters.Count;
             while (idx-- != 0)
@@ -55,71 +98,7 @@ namespace ADC.RestApiTools
             }
             return -1;
         }
-        public static void SetDataByRequest(this IRestRequest request, string baseUrl, IList<Parameter> headers, object data)
-        {
-            var hash = GetHashFromUri(baseUrl, request.Parameters);
-            var etagIdx = headers.IndexOfParam( "ETAG");
-            var expiresIdx = headers.IndexOfParam( "Expires");
-
-            // todo also get e.g. Expires: Mon, 11 Jan 2010 13:29:35 GMT
-            // or Cache-Control: max-age=600
-            var lastModifiedIdex = headers.IndexOfParam("Last-Modified");
-            var cacheControl = headers.IndexOfParam( "Cache-Control"); //max-age=<seconds>
-            if (etagIdx < 0 && lastModifiedIdex < 0 && cacheControl < 0)
-            {
-                return;
-            }
-            DateTimeOffset? offset = null;
-            if (expiresIdx >= 0)
-            {
-                var directive = (string)headers[expiresIdx].Value;
-                if (DateTimeOffset.TryParseExact(directive, new string[] { "o", "r", "u", "s" }, null, DateTimeStyles.None, out DateTimeOffset dto))
-                {
-                    offset = dto;
-                }
-            }
-            TimeSpan? expiresRelative = null;
-            if (cacheControl >= 0 && offset == null)
-            {
-                var directive = (string)headers[cacheControl].Value;
-                //Cache-Control: public,max-age=31536000
-                if (directive.IndexOf("max-age", StringComparison.InvariantCultureIgnoreCase) >= 0)
-                {
-                    var parts = directive.Split('=');
-                    if (parts[0].Contains(',')) //may be private or public
-                    {
-                        var isPrivate = parts[0].Split(',')[0].StartsWith("private", StringComparison.InvariantCultureIgnoreCase);
-                        if (isPrivate)
-                        {
-                            parts = new string[0];//disable no caching at server side
-                        }
-                    }
-                    // no need for trimming
-                    if (parts.Length == 2 && double.TryParse(parts[1], out double expiresSeconds))
-                    {
-                        expiresRelative = TimeSpan.FromSeconds(expiresSeconds);
-                    }
-                }
-            }
-            var lastMod = lastModifiedIdex >= 0 ? (string)headers[lastModifiedIdex].Value : default(string);
-            var expires = expiresIdx >= 0 ? (string)headers[expiresIdx].Value : default(string);
-            var etagValue = etagIdx >= 0 ? (string)headers[etagIdx].Value : default(string);
-
-            if (expiresRelative != null)
-            {
-                Cache.Set(hash, (etagValue, lastMod, true, data), expiresRelative.Value);
-            }
-            else if (offset != null)
-            {
-                Cache.Set(hash, (etagValue, lastMod, true, data), offset.Value);
-            }
-            // cache but ETAG must be set
-            else
-            {
-                //avoid stuffing memory 24 hours seems a good time unless you have billions of rows from wich billions are requested daily
-                // monitor memory
-                Cache.Set(hash, (etagValue, lastMod, false, data), ExpiresDefault);
-            }
-        }
+     
+      
     }
 }
