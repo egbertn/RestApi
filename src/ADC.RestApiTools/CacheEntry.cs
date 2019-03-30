@@ -1,11 +1,14 @@
 ﻿
-namespace ADC.RestApiTools.Models
+namespace ADC.RestApiTools
 {
-    public struct CacheEntry
+    internal
+    struct CacheEntry
     {
         public byte[] EtagValue;
         public byte[] LastModified;
         public bool HasExpires;
         public byte[] Data;
+        public byte[] ContentType;
+        public byte[] ContentEncoding;
     }
 }

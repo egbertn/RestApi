@@ -27,15 +27,11 @@ namespace TvMazeApi
         public async Task<IEnumerable<Show>> GetShowsAsync(int pageNumber)
         {
             if (pageNumber < 0) throw new ArgumentOutOfRangeException(nameof(pageNumber));
-            var client = new RestClient(_baseUrl);
-            client.RestSharpHandler();
+            var client = new SmarterRestClient(_baseUrl);
+          
             var request = new RestRequest("shows", Method.GET);
             request.AddQueryParameter("page", pageNumber.ToString());
-            var data = request.GetDataByHashFromRequest< IEnumerable<Show>>(_baseUrl); 
-            if (data != null)
-            {
-                return data;
-            }
+            
             var isRateLimited = false;
             do
             {
@@ -45,13 +41,11 @@ namespace TvMazeApi
                 
                 switch (response.StatusCode)
                 {
-                    case HttpStatusCode.NotModified:
-                        return request.GetDataByHashFromRequest<IEnumerable<Show>>(_baseUrl);
                     default:
                     case HttpStatusCode.NotFound:
                         return new Show[0];
                     case HttpStatusCode.OK:
-                       
+                    case HttpStatusCode.NotModified:
                         return response.Data;
                     case (HttpStatusCode)HttpStatusCodeReachedRateLimit:
                         isRateLimited = true;
@@ -75,14 +69,12 @@ namespace TvMazeApi
         public async Task<IEnumerable<Actor>> GetCastAsync(Show tvShow)
         {
             if (tvShow == null) throw new ArgumentNullException(nameof(tvShow));
-            var client = new RestClient(_baseUrl);
-            client.RestSharpHandler();
+            var client = new SmarterRestClient(_baseUrl);
+          
+            
             var request = new RestRequest($"shows/{tvShow.Id}/cast", Method.GET);
-            var data = request.GetDataByHashFromRequest<IEnumerable<Actor>>(_baseUrl);
-            if (data != null)
-            {
-                return data;
-            }
+          
+         
             var isRateLimited = false;
             do
             {
@@ -90,10 +82,8 @@ namespace TvMazeApi
                 var response = await client.ExecuteTaskAsync<IEnumerable<Actor>>(request);
 
                 switch(response.StatusCode)
-                {
+                {                       
                     case HttpStatusCode.NotModified:
-                        return request.GetDataByHashFromRequest< IEnumerable<Actor>>(_baseUrl);
-                       
                     case HttpStatusCode.OK:
                        
                         return response.Data;

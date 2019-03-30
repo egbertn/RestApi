@@ -4,10 +4,19 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>ADC.RestApiTools</RootNamespace>
     <AssemblyName>ADC.RestApiTools</AssemblyName>
+    <Description>Wraps RestSharp and enables HTTP Cache directives to be interpreted and where possible, requests are cached in Memory.
+e.g. if a Rest Request contains an ETAG it is set having If-None-Match.
+If a request response contains a Last-Modified it will have a If-Last-Modified header so that the Rest Server can sent a 'Not Modified' (status = 304) response.
+If a server returns an Expires or Cache-Control with mage-age directive, the cache will be hit directly, no server roundtrip will be attempted.
+Note that the Memory Cache is local to the server proces it is not shared (such as with Redis)</Description>
+    <Copyright>MIT</Copyright>
+    <RepositoryType>GitHub</RepositoryType>
+    <PackageReleaseNotes>First release, no support for Xml deserialisation yet</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/egbertn/SmarterRestSharp</RepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.2.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="RestSharp" Version="106.6.9" />
 
   </ItemGroup>
