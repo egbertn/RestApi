@@ -8,14 +8,15 @@ namespace ADC.RestApiTools
 {
     public static class RestSharpExtensions
     {
-        public static void ConfigHttpCache(long maxMemorySize, TimeSpan? expirationScanFrequency = null)
+        public static void ConfigHttpCache(long maxMemorySize, TimeSpan? expirationScanFrequency = null, TimeSpan? slidingExpiration = null)
         {
             MaxMemorySize = maxMemorySize;
             ExpirationScanFrequency = expirationScanFrequency;
+            SlidingExpiration = slidingExpiration;
         }
         private static long? MaxMemorySize;
         private static TimeSpan? ExpirationScanFrequency;
-
+        internal static TimeSpan? SlidingExpiration;
         internal static readonly Lazy<IMemoryCache> Cache = new Lazy<IMemoryCache>(() => new MemoryCache(
               new MemoryCacheOptions()
               {

@@ -1,6 +1,4 @@
 ﻿using RestSharp;
-using RestSharp.Deserializers;
-using RestSharp.Serialization.Json;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +10,11 @@ using System.Net.Mime;
 
 namespace ADC.RestApiTools
 {
-    public sealed class SmarterRestClient: RestClient, IDeserializer
+    /// <summary>
+    /// wraps RestSharp.RestClient and adds memory caching support whereever 
+    /// possible using HTTP header information such as NotModified, Expires, Cache-Control and ETAG
+    /// </summary>
+    public sealed class SmarterRestClient: RestClient
     {
         /// <summary>
         /// tells the client that the response came from memory-cache
@@ -21,20 +23,116 @@ namespace ADC.RestApiTools
         private const string MEMORY_CACHE_URI = "about:cache?device=memory";
         public SmarterRestClient()
         {
-            SetHandler();
+
         }
         public SmarterRestClient(Uri baseUri): base(baseUri)
         {
-            SetHandler();
+ 
         }
         public SmarterRestClient(string baseUri): base(baseUri)
         {
-            SetHandler();
+   
         }
 
+        private IRestResponse IRestResponseFromCache(IRestRequest request, Method method = Method.GET)
+        {
+            if (method != Method.GET || request.Method != Method.GET) return null;
+            CheckCacheByUri(request, out CacheEntry etag);
 
+            // the data is there, we allowed cache so that takes precedence
+            if (etag.HasExpires == true)
+            {
+                // this part is tricky, since we emulate the RestRequest serialize
+                var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
+                var contentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
+                //no need to fill content it is done by a lazy loading function in the getter
+                return new RestResponse()
+                {
+                    RawBytes = etag.Data,
+                    ContentEncoding = contentEncoding,
+                    ContentLength = etag.Data.LongLength,
+                    StatusCode = HttpStatusCode.NotModified,
+                    ResponseStatus = ResponseStatus.None,
+                    Request = request,
+                    ContentType = contentType,
+                    ResponseUri = new Uri(MEMORY_CACHE_URI)
+                };
+            }
+            return null;
+        }
+        /// <summary>
+        /// no server roundtrip if from cache is allowed
+        /// </summary>
+        private IRestResponse<T> IRestResponseFromCache<T>(IRestRequest request, Method method = Method.GET)
+        {
+            if (method != Method.GET || request.Method != Method.GET) return null;
+            CheckCacheByUri(request, out CacheEntry etag);
 
-        T IDeserializer.Deserialize<T>(IRestResponse response)
+            // the data is there, we allowed cache so that takes precedence
+            if (etag.HasExpires == true)
+            {
+                // this part is tricky, since we emulate the RestRequest serialize
+                var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
+                var raw = new RestResponse()
+                {
+                    RawBytes = etag.Data,
+                    ContentEncoding = contentEncoding,
+                    ContentLength = etag.Data.LongLength,
+                    StatusCode = HttpStatusCode.NotModified,
+                    ResponseStatus = ResponseStatus.None,
+                    Request = request,
+                    ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null,
+                    ResponseUri = new Uri(MEMORY_CACHE_URI)
+                };
+              
+               return base.Deserialize<T>(raw);
+      
+            }
+            return null;
+        }
+
+        private void SetRestResponseFromCache(IRestResponse response, IRestRequest request, Method method = Method.GET)
+        {
+            if (method != Method.GET || request.Method != Method.GET) return;
+            CheckCacheByUri(request, out CacheEntry etag);
+
+            // the data SHOULD be there just let them deal with it.
+            if (etag.Data == null)
+            {
+                return;
+            }
+            // this part is tricky, since we emulate the RestRequest serialize
+            var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
+            var contentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
+            response.RawBytes = etag.Data;
+            response.ContentEncoding = contentEncoding;
+            response.ContentLength = etag.Data.LongLength;
+            response.ContentType = contentType;
+            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
+        }
+        private void SetRestResponseFromCache<T>(IRestResponse<T> response, IRestRequest request, Method method = Method.GET)
+        {
+            if (method != Method.GET || request.Method != Method.GET) return;
+            CheckCacheByUri(request, out CacheEntry etag);
+
+            // the data SHOULD be there just let them deal with it.
+            if (etag.Data == null)
+            {
+                return;
+            }
+            // this part is tricky, since we emulate the RestRequest serialize
+            var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
+            response.RawBytes = etag.Data;
+            response.ContentEncoding = contentEncoding;
+            response.ContentLength = etag.Data.LongLength;
+            response.ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
+            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
+       
+            response.Data = base.Deserialize<T>(response).Data;
+            
+        }
+
+        void HookDeserialize (IRestResponse response)
         {
             var body = response.RawBytes;
             var hash = response.ResponseUri.ToString().GetHashCode(); //note if redirected, is a problem
@@ -104,25 +202,17 @@ namespace ADC.RestApiTools
                             + (value.ContentType?.Length ?? 0)
                             + (value.ContentEncoding?.Length ?? 0),
                     AbsoluteExpirationRelativeToNow = expiresRelative,
-                    AbsoluteExpiration = offset
+                    AbsoluteExpiration = offset,
+                    SlidingExpiration = RestSharpExtensions.SlidingExpiration
                 };
 
                 RestSharpExtensions.Cache.Value.Set(hash, value, options);
             }
-            //todo handle XML
-            if (contentType.MediaType.Equals( "application/json", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return new JsonSerializer().Deserialize<T>(response);
-            }
-            return new XmlDeserializer().Deserialize<T>(response);
+            
         }
 
-        private void SetHandler()
-        {
-            this.AddHandler("application/xml", () => this);
-            this.AddHandler("text/xml", () => this);
-            this.AddHandler("application/json", () => this);
-        }
+       
+        
         private void CheckCacheByUri(IRestRequest request, out CacheEntry entry)
         {
            
@@ -142,302 +232,60 @@ namespace ADC.RestApiTools
             }
             entry = new CacheEntry();
         }
+        // this guy must have a seperate dealing since it does NOT deserialize
         public override IRestResponse Execute(IRestRequest request)
         {
-            return base.Execute(request, request.Method);
-        }
-        //no server round trip, valid only if we are allowed to read from cache
-        private IRestResponse IRestResponseFromCache(IRestRequest request, Method method= Method.GET)
-        {
-            if (method != Method.GET || request.Method != Method.GET)  return null;
-            CheckCacheByUri(request, out CacheEntry etag);
+          
+            var resp = IRestResponseFromCache(request, request.Method);
 
-            // the data is there, we allowed cache so that takes precedence
-            if (etag.HasExpires == true)
-            {
-                // this part is tricky, since we emulate the RestRequest serialize
-                var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
-                return new RestResponse()
-                {
-                    RawBytes = etag.Data,
-                    ContentEncoding = contentEncoding,
-                    Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data),
-                    ContentLength = etag.Data.LongLength,
-                    StatusCode = HttpStatusCode.NotModified,
-                    ResponseStatus = ResponseStatus.None,
-                    Request = request,
-                    ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null,
-                    ResponseUri = new Uri(MEMORY_CACHE_URI)
-                };
-            }
-            return null;
-        }
-        /// <summary>
-        /// no server roundtrip if from cache is allowed
-        /// </summary>
-        private IRestResponse<T> IRestResponseFromCache<T>(IRestRequest request, Method method = Method.GET)
-        {
-            if (method != Method.GET || request.Method != Method.GET) return null;
-            CheckCacheByUri(request, out CacheEntry etag);
+            var httpResponse = resp ?? base.Execute(request);
 
-            // the data is there, we allowed cache so that takes precedence
-            if (etag.HasExpires == true)
-            {
-                // this part is tricky, since we emulate the RestRequest serialize
-                var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
-                var retVal = new RestResponse<T>()
-                {
-                    RawBytes = etag.Data,
-                    ContentEncoding = contentEncoding,
-                    Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data),                   
-                    ContentLength = etag.Data.LongLength,
-                    StatusCode = HttpStatusCode.NotModified,
-                    ResponseStatus = ResponseStatus.None,
-                    Request = request,
-                    ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null,
-                    ResponseUri = new Uri(MEMORY_CACHE_URI)
-                };
-                var contentType = new ContentType(retVal.ContentType);
-                if (contentType.MediaType.Equals("application/json", StringComparison.InvariantCultureIgnoreCase))
-                {
-                    var ser = new JsonSerializer();
-
-                    retVal.Data = ser.Deserialize<T>(retVal);
-                }
-                else
-                {
-                    var xml = new XmlDeserializer();
-                    if (!string.IsNullOrEmpty(request.DateFormat))
-                        xml.DateFormat = request.DateFormat;
-
-                    if (!string.IsNullOrEmpty(request.XmlNamespace))
-                        xml.Namespace = request.XmlNamespace;
-                    retVal.Data = xml.Deserialize<T>(retVal);
-                }
-                return retVal;
-            }
-            return null;
-        }
-        
-        private void SetRestResponseFromCache(IRestResponse response, IRestRequest request, Method method = Method.GET)
-        {
-            if (method != Method.GET || request.Method != Method.GET) return ;
-            CheckCacheByUri(request, out CacheEntry etag);
-
-            // the data SHOULD be there just let them deal with it.
-            if (etag.Data == null)
-            {
-                return;
-            }
-               // this part is tricky, since we emulate the RestRequest serialize
-            var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
-
-            response.RawBytes = etag.Data;
-            response.ContentEncoding = contentEncoding;
-            response.Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data);
-            response.ContentLength = etag.Data.LongLength;
-            response.ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
-            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
-        }
-        private void SetRestResponseFromCache<T>(IRestResponse<T> response, IRestRequest request, Method method = Method.GET)
-        {
-            if (method != Method.GET || request.Method != Method.GET) return;
-            CheckCacheByUri(request, out CacheEntry etag);
-
-            // the data SHOULD be there just let them deal with it.
-            if (etag.Data == null)
-            {
-                return;
-            }
-            // this part is tricky, since we emulate the RestRequest serialize
-            var contentEncoding = etag.ContentEncoding != null ? Encoding.UTF8.GetString(etag.ContentEncoding) : "utf-8";
-            
-            response.RawBytes = etag.Data;
-            response.ContentEncoding = contentEncoding;
-            response.Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data);
-            response.ContentLength = etag.Data.LongLength;
-            response.ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
-            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
-            var contentType = new ContentType(response.ContentType);
-            if (contentType.MediaType.Equals("application/json", StringComparison.InvariantCultureIgnoreCase))
-            {
-                var ser = new JsonSerializer();
-
-                response.Data = ser.Deserialize<T>(response);
-            }
-            else
-            {   var xml  = new XmlDeserializer();
-                if (!string.IsNullOrEmpty(request.DateFormat))
-                    xml.DateFormat = request.DateFormat;
-
-                if (!string.IsNullOrEmpty(request.XmlNamespace))
-                    xml.Namespace = request.XmlNamespace;
-                response.Data = xml.Deserialize<T>(response);
-            }
-        }
-        public override IRestResponse Execute(IRestRequest request, Method httpMethod)
-        {
-            var resp = IRestResponseFromCache(request, httpMethod);
-            
-            var httpResponse = resp ?? base.Execute(request, httpMethod);
             // the server told us the resource has not been modified
             // so get it from our cache
             if (httpResponse.ServerSaysReadFromCache())
             {
-                SetRestResponseFromCache(httpResponse, request, httpMethod);
+                SetRestResponseFromCache(httpResponse, request, request.Method);
+            }
+            else if (httpResponse.IsSuccessful && request.Method == Method.GET)
+            {
+                HookDeserialize(httpResponse); //store it
             }
             return httpResponse;
         }
-        public override IRestResponse<T> Execute<T>(IRestRequest request)
+        //no server round trip, valid only if we are allowed to read from cache
+
+
+        //note no deserialisiation takes place on none Generic IRestResponse
+        public override async Task<IRestResponse> ExecuteTaskAsync(IRestRequest request, CancellationToken token)
+        {           
+            var resp = IRestResponseFromCache(request, request.Method);
+            
+            var httpResponse = resp ?? await base.ExecuteTaskAsync(request, token);
+           
+            if (httpResponse.ServerSaysReadFromCache())
+            {
+                SetRestResponseFromCache(httpResponse, request, request.Method);
+            }
+            else if (httpResponse.IsSuccessful && request.Method == Method.GET)
+            {
+                HookDeserialize(httpResponse); //store it
+            }
+            return httpResponse;
+        }
+
+
+        public override async Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token)
         {
-            var resp = IRestResponseFromCache<T>(request, request.Method);
-
-            var httpResponse = resp ?? base.Execute<T>(request);
-
+            request.OnBeforeDeserialization += this.HookDeserialize;
+            var resp = IRestResponseFromCache<T>(request, request.Method);        
+            var httpResponse = resp ?? await base.ExecuteTaskAsync<T>(request, token);
+            request.OnBeforeDeserialization -= this.HookDeserialize;
             if (httpResponse.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
             return httpResponse;
         }
-        public override IRestResponse<T> Execute<T>(IRestRequest request, Method httpMethod)
-        {
-            var resp = IRestResponseFromCache<T>(request, httpMethod);
 
-            var httpResponse = resp ?? base.Execute<T>(request, httpMethod);
-
-            if (httpResponse.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse, request, httpMethod);
-            }
-            return httpResponse;
-        }
-
-        
-        public override Task<IRestResponse> ExecuteGetTaskAsync(IRestRequest request)
-        {
-            var resp =  IRestResponseFromCache(request, Method.GET);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) :  base.ExecuteGetTaskAsync(request);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse> ExecuteGetTaskAsync(IRestRequest request, CancellationToken token)
-        {
-            var resp = IRestResponseFromCache(request, request.Method);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync(request, token);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, request.Method);
-            }
-            return httpResponse;
-            //return base.ExecuteGetTaskAsync(request, token);
-        }
-        public override Task<IRestResponse<T>> ExecuteGetTaskAsync<T>(IRestRequest request)
-        {
-            var resp = IRestResponseFromCache<T>(request, Method.GET);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync<T>(request);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
-            }
-            return httpResponse;
-        }
-
-        public override Task<IRestResponse<T>> ExecuteGetTaskAsync<T>(IRestRequest request, CancellationToken token)
-        {
-            var resp = IRestResponseFromCache<T>(request, Method.GET);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync<T>(request, token);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse> ExecuteTaskAsync(IRestRequest request)
-        {
-            var resp = IRestResponseFromCache(request, request.Method);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, request.Method);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse> ExecuteTaskAsync(IRestRequest request, CancellationToken token)
-        {
-            var resp = IRestResponseFromCache(request, request.Method);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request, token);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, request.Method);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse> ExecuteTaskAsync(IRestRequest request, CancellationToken token, Method httpMethod)
-        {
-            var resp = IRestResponseFromCache(request, httpMethod);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request, token, httpMethod);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
-            }
-            return httpResponse;
-        }
-
-        public override Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request)
-        {
-            var resp = IRestResponseFromCache<T>(request, request.Method);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, request.Method);
-            }
-            return httpResponse;
-        }
-
-        public override Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token)
-        {
-            var resp = IRestResponseFromCache<T>(request, request.Method);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, token);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, request.Method);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token, Method httpMethod)
-        {
-            var resp = IRestResponseFromCache<T>(request, httpMethod);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, token, httpMethod);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
-            }
-            return httpResponse;
-        }
-        public override Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, Method httpMethod)
-        {
-            var resp = IRestResponseFromCache<T>(request, httpMethod);
-
-            var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, httpMethod);
-            if (httpResponse.Result.ServerSaysReadFromCache())
-            {
-                SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
-            }
-            return httpResponse;
-        }
     }
 }
