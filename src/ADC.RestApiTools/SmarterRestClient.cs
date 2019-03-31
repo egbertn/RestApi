@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
-using System.IO;
 using System.Net;
 using System.Net.Mime;
 
@@ -15,6 +14,11 @@ namespace ADC.RestApiTools
 {
     public sealed class SmarterRestClient: RestClient, IDeserializer
     {
+        /// <summary>
+        /// tells the client that the response came from memory-cache
+        /// So, the RequestUri is not the same as the ResponseUri
+        /// </summary>
+        private const string MEMORY_CACHE_URI = "about:cache?device=memory";
         public SmarterRestClient()
         {
             SetHandler();
@@ -157,18 +161,20 @@ namespace ADC.RestApiTools
                 {
                     RawBytes = etag.Data,
                     ContentEncoding = contentEncoding,
-                    Content = StringFromRawBytes(etag.Data, contentEncoding),
+                    Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data),
                     ContentLength = etag.Data.LongLength,
                     StatusCode = HttpStatusCode.NotModified,
                     ResponseStatus = ResponseStatus.None,
                     Request = request,
                     ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null,
-                    ResponseUri = new Uri("about:cache?device=memory")
+                    ResponseUri = new Uri(MEMORY_CACHE_URI)
                 };
             }
             return null;
         }
-        // no server roundtrip if from cache is allowed
+        /// <summary>
+        /// no server roundtrip if from cache is allowed
+        /// </summary>
         private IRestResponse<T> IRestResponseFromCache<T>(IRestRequest request, Method method = Method.GET)
         {
             if (method != Method.GET || request.Method != Method.GET) return null;
@@ -183,13 +189,13 @@ namespace ADC.RestApiTools
                 {
                     RawBytes = etag.Data,
                     ContentEncoding = contentEncoding,
-                    Content = StringFromRawBytes(etag.Data, contentEncoding),                   
+                    Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data),                   
                     ContentLength = etag.Data.LongLength,
                     StatusCode = HttpStatusCode.NotModified,
                     ResponseStatus = ResponseStatus.None,
                     Request = request,
                     ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null,
-                    ResponseUri = new Uri("about:cache?device=memory")
+                    ResponseUri = new Uri(MEMORY_CACHE_URI)
                 };
                 var contentType = new ContentType(retVal.ContentType);
                 if (contentType.MediaType.Equals("application/json", StringComparison.InvariantCultureIgnoreCase))
@@ -212,10 +218,7 @@ namespace ADC.RestApiTools
             }
             return null;
         }
-        private static string StringFromRawBytes(byte[] data, string contentEncoding)
-        {
-            return new StreamReader(new MemoryStream(data), Encoding.GetEncoding(contentEncoding)).ReadToEnd();
-        }
+        
         private void SetRestResponseFromCache(IRestResponse response, IRestRequest request, Method method = Method.GET)
         {
             if (method != Method.GET || request.Method != Method.GET) return ;
@@ -231,10 +234,10 @@ namespace ADC.RestApiTools
 
             response.RawBytes = etag.Data;
             response.ContentEncoding = contentEncoding;
-            response.Content = StringFromRawBytes(etag.Data, contentEncoding);
+            response.Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data);
             response.ContentLength = etag.Data.LongLength;
             response.ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
-            response.ResponseUri = new Uri("about:cache?device=memory");
+            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
         }
         private void SetRestResponseFromCache<T>(IRestResponse<T> response, IRestRequest request, Method method = Method.GET)
         {
@@ -251,10 +254,10 @@ namespace ADC.RestApiTools
             
             response.RawBytes = etag.Data;
             response.ContentEncoding = contentEncoding;
-            response.Content = StringFromRawBytes(etag.Data, contentEncoding);
+            response.Content = Encoding.GetEncoding(contentEncoding).GetString(etag.Data);
             response.ContentLength = etag.Data.LongLength;
             response.ContentType = etag.ContentType != null ? Encoding.UTF8.GetString(etag.ContentType) : null;
-            response.ResponseUri = new Uri("about:cache?device=memory");
+            response.ResponseUri = new Uri(MEMORY_CACHE_URI);
             var contentType = new ContentType(response.ContentType);
             if (contentType.MediaType.Equals("application/json", StringComparison.InvariantCultureIgnoreCase))
             {
@@ -279,7 +282,7 @@ namespace ADC.RestApiTools
             var httpResponse = resp ?? base.Execute(request, httpMethod);
             // the server told us the resource has not been modified
             // so get it from our cache
-            if (httpResponse.StatusCode == HttpStatusCode.NotModified && httpResponse.ResponseUri?.Scheme != "about")
+            if (httpResponse.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse, request, httpMethod);
             }
@@ -291,7 +294,7 @@ namespace ADC.RestApiTools
 
             var httpResponse = resp ?? base.Execute<T>(request);
 
-            if (httpResponse.StatusCode == HttpStatusCode.NotModified && httpResponse.ResponseUri?.Scheme != "about")
+            if (httpResponse.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
@@ -303,7 +306,7 @@ namespace ADC.RestApiTools
 
             var httpResponse = resp ?? base.Execute<T>(request, httpMethod);
 
-            if (httpResponse.StatusCode == HttpStatusCode.NotModified && httpResponse.ResponseUri?.Scheme != "about")
+            if (httpResponse.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse, request, httpMethod);
             }
@@ -316,7 +319,7 @@ namespace ADC.RestApiTools
             var resp =  IRestResponseFromCache(request, Method.GET);
 
             var httpResponse = resp != null ? Task.FromResult(resp) :  base.ExecuteGetTaskAsync(request);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
             }
@@ -327,7 +330,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache(request, request.Method);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync(request, token);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, request.Method);
             }
@@ -339,7 +342,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, Method.GET);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync<T>(request);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
             }
@@ -351,7 +354,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, Method.GET);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteGetTaskAsync<T>(request, token);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, Method.GET);
             }
@@ -362,7 +365,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache(request, request.Method);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, request.Method);
             }
@@ -373,7 +376,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache(request, request.Method);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request, token);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, request.Method);
             }
@@ -384,7 +387,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache(request, httpMethod);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync(request, token, httpMethod);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
             }
@@ -396,7 +399,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, request.Method);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, request.Method);
             }
@@ -408,7 +411,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, request.Method);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, token);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, request.Method);
             }
@@ -419,7 +422,7 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, httpMethod);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, token, httpMethod);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
             }
@@ -430,13 +433,11 @@ namespace ADC.RestApiTools
             var resp = IRestResponseFromCache<T>(request, httpMethod);
 
             var httpResponse = resp != null ? Task.FromResult(resp) : base.ExecuteTaskAsync<T>(request, httpMethod);
-            if (httpResponse.Result.StatusCode == HttpStatusCode.NotModified && httpResponse.Result.ResponseUri?.Scheme != "about")
+            if (httpResponse.Result.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse.Result, request, httpMethod);
             }
             return httpResponse;
         }
-
     }
-
 }

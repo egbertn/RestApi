@@ -2,6 +2,7 @@
 using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Net;
 
 namespace ADC.RestApiTools
 {
@@ -35,6 +36,19 @@ namespace ADC.RestApiTools
                 }
             }
             return -1;
+        }
+        /// <summary>
+        /// indicates a NotModified (304) HTTP status but this is not from memorycache but an authentic server
+        /// response
+        /// </summary>
+        internal
+        static bool ServerSaysReadFromCache(this IRestResponse response)
+        {
+            if (response is null)
+            {
+                return false;
+            }
+            return response.StatusCode == HttpStatusCode.NotModified && response.ResponseUri?.Scheme != "about";
         }
     }
 }
