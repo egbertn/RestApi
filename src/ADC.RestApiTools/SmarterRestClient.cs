@@ -135,7 +135,8 @@ namespace ADC.RestApiTools
         void HookDeserialize (IRestResponse response)
         {
             var body = response.RawBytes;
-            var hash = response.ResponseUri.ToString().GetHashCode(); //note if redirected, is a problem
+            var uri = new Uri(BaseUrl, BuildUri(response.Request));
+            var hash = uri.ToString().GetHashCode();
 
             var headers = response.Headers;
 
