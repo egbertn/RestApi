@@ -259,7 +259,7 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            else if (httpResponse.CanBeCached() && request.Method == Method.GET)
+            else if (httpResponse.CanBeCached() )
             {
                 CheckAndStoreInCache(httpResponse); //store it
             }
@@ -276,7 +276,7 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            else if (httpResponse.CanBeCached() && request.Method == Method.GET)
+            else if (httpResponse.CanBeCached())
             {
                 CheckAndStoreInCache(httpResponse); //store it
             }
@@ -291,7 +291,7 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            if (httpResponse.CanBeCached() && request.Method == Method.GET)
+            if (httpResponse.CanBeCached())
             {
                 CheckAndStoreInCache(httpResponse); //store it
             }

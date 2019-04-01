@@ -46,6 +46,10 @@ namespace ADC.RestApiTools
         internal
         static bool CanBeCached(this IRestResponse response)
         {
+            if (response.Request.Method != Method.GET)
+            {
+                return false;
+            }
             // the only statuscodes that assumingly can be combined with a full cache of the data
             // partial content e.g. should not be cached 
             switch(response.StatusCode)
