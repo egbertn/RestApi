@@ -291,7 +291,7 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            if (httpResponse.CanBeCached())
+            else if (httpResponse.CanBeCached())
             {
                 CheckAndStoreInCache(httpResponse); //store it
             }
