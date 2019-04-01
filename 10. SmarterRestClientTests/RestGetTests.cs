@@ -10,11 +10,12 @@ namespace SmarterRestClientTests
     public class RestGetTests
     {
 
-        private IRestClient _restClient;
+        private SmarterRestClient _restClient;
         public RestGetTests()
         {
             ///cms/api/am/imageFileData/RE1Mu3b?ver=5c31
             _restClient = new SmarterRestClient("https://img-prod-cms-rt-microsoft-com.akamaized.net");
+           _restClient.AddCacheHandler(new RestMemoryCache());
         }
         [Fact]
         public async Task ImageIsCached()

@@ -1,7 +1,7 @@
 ﻿
 namespace ADC.RestApiTools
 {
-    internal
+    public
     struct CacheEntry
     {
         public byte[] EtagValue;
