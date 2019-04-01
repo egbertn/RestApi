@@ -5,7 +5,9 @@ namespace ADC.RestApiTools
     struct CacheEntry
     {
         public byte[] EtagValue;
-        public byte[] LastModified;
+        //"r" format DateTimeOffset 
+        // stored as FileTime
+        public long? LastModified;
         public bool HasExpires;
         public byte[] Data;
         public byte[] ContentType;

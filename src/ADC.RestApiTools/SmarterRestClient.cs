@@ -21,6 +21,8 @@ namespace ADC.RestApiTools
         /// So, the RequestUri is not the same as the ResponseUri
         /// </summary>
         private const string MEMORY_CACHE_URI = "about:cache?device=memory";
+        // GMT and UTC notation e.g. Mon, 11 Jan 2010 13:29:35 GMT
+        private static readonly string[] DateTimeStringFormats = new string[] { "r", "o" };
         public SmarterRestClient()
         {
 
@@ -132,7 +134,7 @@ namespace ADC.RestApiTools
             
         }
 
-        void HookDeserialize (IRestResponse response)
+        void CheckAndStoreInCache (IRestResponse response)
         {
             var body = response.RawBytes;
             var uri = new Uri(BaseUrl, BuildUri(response.Request));
@@ -150,16 +152,26 @@ namespace ADC.RestApiTools
             var contentType = new ContentType(response.ContentType);
             if (etagIdx >= 0 || lastModifiedIdex >= 0 || cacheControl >= 0 || expiresIdx >= 0)
             {
+                var dateTimeFormat = CultureInfo.InvariantCulture.DateTimeFormat;
                 DateTimeOffset? offset = null;
                 if (expiresIdx >= 0)
                 {
                     var directive = (string)headers[expiresIdx].Value;
-                    if (DateTimeOffset.TryParseExact(directive, new string[] { "o", "r", "u", "s" }, null, DateTimeStyles.None, out DateTimeOffset dto))
+                    if (DateTimeOffset.TryParseExact(directive, DateTimeStringFormats, dateTimeFormat, DateTimeStyles.None, out DateTimeOffset dto))
                     {
                         offset = dto;
                     }
                 }
                 TimeSpan? expiresRelative = null;
+                DateTimeOffset? lastModified = null;
+                if (lastModifiedIdex >= 0)
+                {
+                    var lastMod = lastModifiedIdex >= 0 ? (string)headers[lastModifiedIdex].Value : default(string);
+                    if (DateTimeOffset.TryParseExact(lastMod, DateTimeStringFormats, dateTimeFormat, DateTimeStyles.None, out DateTimeOffset dto))
+                    {
+                        lastModified = dto;
+                    }
+                }
                 if (cacheControl >= 0 && offset == null)
                 {
                     var directive = (string)headers[cacheControl].Value;
@@ -182,7 +194,7 @@ namespace ADC.RestApiTools
                         }
                     }
                 }
-                var lastMod = lastModifiedIdex >= 0 ? (string)headers[lastModifiedIdex].Value : default(string);
+              
                 var expires = expiresIdx >= 0 ? (string)headers[expiresIdx].Value : default(string);
                 var etagValue = etagIdx >= 0 ? (string)headers[etagIdx].Value : default(string);
 
@@ -191,7 +203,7 @@ namespace ADC.RestApiTools
                 {
                     EtagValue = etagIdx >= 0 ? Encoding.UTF8.GetBytes(etagValue) : null,
                     HasExpires = true,
-                    LastModified = lastModifiedIdex >= 0 ? Encoding.UTF8.GetBytes(lastMod) : null,
+                    LastModified = lastModified != null ? lastModified.Value.ToFileTime() : default(long?),
                     Data = body,
                     ContentType = Encoding.UTF8.GetBytes(contentType.MediaType),
                     ContentEncoding = Encoding.UTF8.GetBytes(response.ContentEncoding ?? contentType.CharSet ?? "UTF-8")
@@ -199,7 +211,7 @@ namespace ADC.RestApiTools
                 var options = new MemoryCacheEntryOptions
                 {
                     Size = value.Data.Length + (value.EtagValue?.Length ?? 0)
-                            + (value.LastModified?.Length ?? 0)
+                            + (value.LastModified != null ? sizeof(long) : 0)
                             + (value.ContentType?.Length ?? 0)
                             + (value.ContentEncoding?.Length ?? 0),
                     AbsoluteExpirationRelativeToNow = expiresRelative,
@@ -227,7 +239,7 @@ namespace ADC.RestApiTools
                 }
                 if (entry.LastModified != null)
                 {
-                    request.AddHeader("If-Last-Modified", Encoding.UTF8.GetString(entry.LastModified));
+                    request.AddHeader("If-Last-Modified", DateTimeOffset.FromFileTime(entry.LastModified.Value).ToString("r"));
                 }
                 return;
             }
@@ -247,16 +259,13 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            else if (httpResponse.IsSuccessful && request.Method == Method.GET)
+            else if (httpResponse.CanBeCached() && request.Method == Method.GET)
             {
-                HookDeserialize(httpResponse); //store it
+                CheckAndStoreInCache(httpResponse); //store it
             }
             return httpResponse;
         }
-        //no server round trip, valid only if we are allowed to read from cache
 
-
-        //note no deserialisiation takes place on none Generic IRestResponse
         public override async Task<IRestResponse> ExecuteTaskAsync(IRestRequest request, CancellationToken token)
         {           
             var resp = IRestResponseFromCache(request, request.Method);
@@ -267,26 +276,26 @@ namespace ADC.RestApiTools
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
-            else if (httpResponse.IsSuccessful && request.Method == Method.GET)
+            else if (httpResponse.CanBeCached() && request.Method == Method.GET)
             {
-                HookDeserialize(httpResponse); //store it
+                CheckAndStoreInCache(httpResponse); //store it
             }
             return httpResponse;
         }
 
-
         public override async Task<IRestResponse<T>> ExecuteTaskAsync<T>(IRestRequest request, CancellationToken token)
         {
-            request.OnBeforeDeserialization += this.HookDeserialize;
             var resp = IRestResponseFromCache<T>(request, request.Method);        
             var httpResponse = resp ?? await base.ExecuteTaskAsync<T>(request, token);
-            request.OnBeforeDeserialization -= this.HookDeserialize;
             if (httpResponse.ServerSaysReadFromCache())
             {
                 SetRestResponseFromCache(httpResponse, request, request.Method);
             }
+            if (httpResponse.CanBeCached() && request.Method == Method.GET)
+            {
+                CheckAndStoreInCache(httpResponse); //store it
+            }
             return httpResponse;
         }
-
     }
 }

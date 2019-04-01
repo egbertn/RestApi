@@ -39,6 +39,26 @@ namespace ADC.RestApiTools
             return -1;
         }
         /// <summary>
+        /// Indicates that this response is suited to be cached
+        /// States OK, Created and NonAuthoritativeInformation are.
+        /// </summary>
+        /// <param name="response"></param>      
+        internal
+        static bool CanBeCached(this IRestResponse response)
+        {
+            // the only statuscodes that assumingly can be combined with a full cache of the data
+            // partial content e.g. should not be cached 
+            switch(response.StatusCode)
+            {
+                case HttpStatusCode.NonAuthoritativeInformation: // it's from another cache server (proxy?)
+                case HttpStatusCode.OK:
+                case HttpStatusCode.Created:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+        /// <summary>
         /// indicates a NotModified (304) HTTP status but this is not from memorycache but an authentic server
         /// response
         /// </summary>
