@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ADC.RestApiTools\10. ADC.RestApiTools.csproj" />
     <ProjectReference Include="..\demo.Services\02. demo.Services.csproj" />
     <ProjectReference Include="..\TvMazeApiClient\03. TvMazeApiClient.csproj" />
   </ItemGroup>

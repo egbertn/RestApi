@@ -12,6 +12,11 @@
                 "reveal": "silent"
             },
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Run Tets",
+            "type": "shell",
+            "command": "dotnet test"
         }
     ]
 }

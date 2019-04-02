@@ -12,6 +12,7 @@ using System;
 using System.IO;
 using System.Linq;
 using TvMazeApi;
+using ADC.RestApiTools;
 
 namespace demo.RestApi
 {
@@ -60,6 +61,7 @@ namespace demo.RestApi
             });
             services.AddScoped<ITvShowService, TvShowService>();
             services.AddScoped<TvMazeClient> ();
+            services.AddSingleton<ISmartRestSharp, MemoryCachedRestSharp>(); 
           
         }
              ///<summary>
