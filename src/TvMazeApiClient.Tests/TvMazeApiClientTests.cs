@@ -1,3 +1,4 @@
+using ADC.RestApiTools;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,7 +14,8 @@ namespace TvMazeApiClient.Tests
         private readonly TvMazeClient _tvMazeClient;
         public TvMazeApiClientTests()
         {
-            _tvMazeClient = new TvMazeClient();
+            var client = new MemoryCachedRestSharp();
+            _tvMazeClient = new TvMazeClient(client);
         }
         [Fact]
         public async Task ShowCastRequestSucceeds()
