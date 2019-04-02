@@ -30,5 +30,19 @@ namespace SmarterRestClientTests
             Assert.Equal("image/png", response.ContentType);
             Assert.Equal("about", response.ResponseUri.Scheme); //from cache
         }
+
+        [Fact]
+        public void NonAsyncImageIsCached()
+        {
+            var request = new RestRequest("/cms/api/am/imageFileData/RE1EIoI?ver=77d5");
+            var response =  _restClient.Execute(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("image/png", response.ContentType);
+            // do it a second time
+            response =  _restClient.Execute(request);
+            Assert.Equal(HttpStatusCode.NotModified, response.StatusCode);
+            Assert.Equal("image/png", response.ContentType);
+            Assert.Equal("about", response.ResponseUri.Scheme); //from cache
+        }
     }
 }

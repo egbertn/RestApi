@@ -106,7 +106,7 @@ namespace ADC.RestApiTools
             }
         }
 
-        public void CheckCacheByUri(IRestClient client, IRestRequest request, out CacheEntry entry)
+        private static void CheckCacheByUri(IRestClient client, IRestRequest request, out CacheEntry entry)
         {
             var uri = new Uri(client.BaseUrl, client.BuildUri(request));
             var hash = uri.ToString().GetHashCode();

@@ -12,6 +12,5 @@ namespace ADC.RestApiTools
         void SetRestResponseFromCache(IRestClient client, IRestResponse response, IRestRequest request, Method method = Method.GET);
         void SetRestResponseFromCache<T>(IRestClient client, IRestResponse<T> response, IRestRequest request, Method method = Method.GET);
         void CheckAndStoreInCache(IRestClient client, IRestResponse response);
-        void CheckCacheByUri(IRestClient client, IRestRequest request, out CacheEntry entry);
     }
 }
